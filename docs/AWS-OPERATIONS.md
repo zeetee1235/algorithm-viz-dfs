@@ -16,12 +16,16 @@
 
 App Runner는 `0.25 vCPU`, `0.5 GB`, 포트 `8080`, HTTP 상태 검사 `/healthz`로 구성했다. App Runner를 멈춰도 GitHub Pages 백업은 계속 사용할 수 있다.
 
+현재 운영 상태(2026-10-22): **PAUSED**. 시험 전에 아래 재개 절차를 실행한다.
+
 ## 사전 조건
 
 AWS CLI는 IAM 사용자나 SSO처럼 폐기·교체 가능한 자격 증명으로 로그인한다. 루트 사용자의 액세스 키는 사용하지 않는다.
 
+현재 로컬 AWS CLI 프로필은 `avf-deploy`이고 표준 파일 `~/.aws/credentials`에 저장되어 있다. 파일에는 비밀 값이 있으므로 Git에 추가하거나 내용을 복사하지 않는다. 명령 실행 시 프로필을 지정한다.
+
 ```bash
-aws sts get-caller-identity
+AWS_PROFILE=avf-deploy aws sts get-caller-identity
 ```
 
 아래 명령은 저장소 루트에서 실행한다.
@@ -29,7 +33,7 @@ aws sts get-caller-identity
 ## 상태 확인
 
 ```bash
-./scripts/aws-service.sh status
+AWS_PROFILE=avf-deploy ./scripts/aws-service.sh status
 ```
 
 `RUNNING`이면 AWS URL과 상태 검사 URL을 확인할 수 있다.
@@ -41,7 +45,7 @@ curl -fsS https://kspzzebuzp.ap-northeast-1.awsapprunner.com/healthz
 ## 시험이 끝난 뒤 일시중지
 
 ```bash
-./scripts/aws-service.sh pause
+AWS_PROFILE=avf-deploy ./scripts/aws-service.sh pause
 ```
 
 일시중지는 App Runner의 컴퓨팅 용량을 0으로 줄이면서 서비스 설정과 도메인을 보존한다. ECR 이미지 같은 별도 저장 리소스는 남아 있으므로 소액의 저장 비용이 계속 발생할 수 있다. 일시중지 중에는 AWS URL로 접속할 수 없다.
@@ -49,13 +53,13 @@ curl -fsS https://kspzzebuzp.ap-northeast-1.awsapprunner.com/healthz
 ## 시험 전에 재개
 
 ```bash
-./scripts/aws-service.sh resume
+AWS_PROFILE=avf-deploy ./scripts/aws-service.sh resume
 ```
 
 `RUNNING`이 된 뒤 화면과 상태 검사를 확인한다.
 
 ```bash
-./scripts/aws-service.sh wait RUNNING
+AWS_PROFILE=avf-deploy ./scripts/aws-service.sh wait RUNNING
 curl -fsS https://kspzzebuzp.ap-northeast-1.awsapprunner.com/healthz
 ```
 
@@ -66,7 +70,7 @@ curl -fsS https://kspzzebuzp.ap-northeast-1.awsapprunner.com/healthz
 시험 환경을 다시 쓸 계획이 없을 때만 실행한다.
 
 ```bash
-./scripts/aws-service.sh delete algorithm-viz-dfs
+AWS_PROFILE=avf-deploy ./scripts/aws-service.sh delete algorithm-viz-dfs
 ```
 
 삭제는 App Runner 서비스와 현재 AWS URL을 영구 제거한다. GitHub 저장소, GitHub Pages, ECR 저장소, IAM 역할은 자동으로 삭제하지 않는다. ECR과 IAM까지 없애려면 대상과 재사용 여부를 다시 확인한 뒤 별도로 정리한다.
@@ -97,6 +101,13 @@ https://ap-northeast-1.console.aws.amazon.com/apprunner/home?region=ap-northeast
 - 루트 계정 비밀번호를 변경하고 MFA를 활성화한다.
 - 자동 배포에는 GitHub OIDC만 사용한다.
 - 저장소나 GitHub Actions 로그에 비밀 값이 없는지 확인한다.
+
+시험 종료 후에는 IAM 콘솔에서 현재 루트 액세스 키를 비활성화·삭제하고 새 키를 만들지 않는다. 이어서 루트 비밀번호를 변경하고 MFA를 확인한 후 로컬 프로필을 제거한다.
+
+```bash
+aws configure set aws_access_key_id '' --profile avf-deploy
+aws configure set aws_secret_access_key '' --profile avf-deploy
+```
 
 AWS 공식 참고 문서:
 
